@@ -70,7 +70,7 @@ const isDashboardField = (
 /**
  * Finds the unit an issue path points into. Panels are keyed by id, so they match their original
  * after moving. Controls have no stable id and are keyed by content, which is enough because no
- * operation edits a control in place.
+ * change edits a control in place.
  */
 const getIssueUnit = (
   dashboardData: DashboardAttachmentData,
@@ -166,7 +166,7 @@ const restoreField = (
 
 /**
  * Groups issues by unit, leaving out units that were already invalid in the original dashboard:
- * the operations did not make those worse, so existing invalid content never blocks an update.
+ * the change did not make those worse, so existing invalid content never blocks an update.
  */
 const getNewInvalidUnits = (
   originalDashboardData: DashboardAttachmentData,
@@ -195,7 +195,7 @@ const getNewInvalidUnits = (
  * Discards the changes behind validation issues, one unit (panel, control or dashboard field) at a
  * time:
  * - a unit invalid only in the result is dropped when it is new, or restored to its original;
- * - a unit that was already invalid before the operations is kept as is;
+ * - a unit that was already invalid before the change is kept as is;
  * - a new issue that belongs to no single unit (e.g. in a section) discards every change.
  */
 export const discardInvalidChanges = ({

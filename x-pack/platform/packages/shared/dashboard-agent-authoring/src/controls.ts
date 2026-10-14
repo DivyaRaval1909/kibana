@@ -64,13 +64,9 @@ const dataControlInputFields = {
   ...controlLayoutFields,
 };
 
-const optionsListControlInputSchema = z.object({
-  type: z.literal(OPTIONS_LIST_CONTROL),
-  ...dataControlInputFields,
-});
-
-const rangeSliderControlInputSchema = z.object({
-  type: z.literal(RANGE_SLIDER_CONTROL),
+/** Options lists and range sliders take the same fields, so they share one schema. */
+const dataControlInputSchema = z.object({
+  type: z.enum([OPTIONS_LIST_CONTROL, RANGE_SLIDER_CONTROL]),
   ...dataControlInputFields,
 });
 
@@ -81,8 +77,7 @@ const timeSliderControlInputSchema = z.object({
 });
 
 export const controlInputSchema = z.discriminatedUnion('type', [
-  optionsListControlInputSchema,
-  rangeSliderControlInputSchema,
+  dataControlInputSchema,
   timeSliderControlInputSchema,
 ]);
 
@@ -124,7 +119,7 @@ const filterDuplicateTimeSliders = ({
     }
 
     failures.push({
-      type: DASHBOARD_FAILURE_TYPES.addControls,
+      type: DASHBOARD_FAILURE_TYPES.upsertDashboard,
       identifier: `controls[${controlInputIndex}]`,
       error: 'A dashboard can contain at most one time_slider_control.',
     });
@@ -202,7 +197,7 @@ const recordControlFailure = ({
   fieldName: string;
   message: string;
 }) => {
-  const type = DASHBOARD_FAILURE_TYPES.addControls;
+  const type = DASHBOARD_FAILURE_TYPES.upsertDashboard;
   const group = failures.find((failure) => failure.type === type && failure.error === message);
   if (group) {
     group.identifier = `${group.identifier}, ${fieldName}`;
@@ -403,8 +398,8 @@ const buildStoredControl = (control: ControlInput): DashboardPinnedPanel => {
 };
 
 /**
- * Appends controls to the dashboard, leaving out duplicate time sliders and controls on fields
- * that cannot back them.
+ * Appends controls to the dashboard, leaving out duplicate time sliders and controls whose field
+ * cannot back them.
  */
 export const appendControls = async ({
   dashboardData,
@@ -433,9 +428,8 @@ export const appendControls = async ({
     failures,
   });
 
-  const newControls = controlsToAdd.map(buildStoredControl);
   return {
     ...dashboardData,
-    pinned_panels: [...existingControls, ...newControls],
+    pinned_panels: [...existingControls, ...controlsToAdd.map(buildStoredControl)],
   };
 };

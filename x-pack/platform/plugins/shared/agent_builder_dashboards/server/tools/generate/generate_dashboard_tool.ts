@@ -19,10 +19,10 @@ import {
 } from '@kbn/agent-builder-dashboards-common';
 
 import {
-  executeDashboardOperations,
+  executeDashboardUpsert,
   getErrorMessage,
-  hasValidCreateMetadataOperations,
-  dashboardOperationSchema,
+  hasValidNewDashboardMetadata,
+  upsertDashboardSchema,
   type ValidateDashboard,
 } from '@kbn/dashboard-agent-authoring';
 import {
@@ -38,8 +38,7 @@ import { findLayoutOverrides } from './layout_overrides';
 import { createPanelResolver } from './resolvers/panel_resolver';
 import { applyDefaultDashboardTimeRange } from './time_range';
 
-const newDashboardMetadataErrorMessage =
-  'New dashboards require a set_metadata operation with a non-empty title.';
+const newDashboardMetadataErrorMessage = 'New dashboards require a non-empty `title`.';
 
 const noDashboardCreatedErrorMessage =
   'No dashboard was created because none of the requested panels or controls could be added (see metadata.failures). Fix the failures and call again without dashboardAttachmentId.';
@@ -55,17 +54,7 @@ const generateDashboardSchema = z.object({
     .describe(
       '(optional) The id of the dashboard attachment to update. Omit to create a new dashboard. The tool reads the current dashboard payload from this reference, so you never have to pass the full payload back in.'
     ),
-  operations: z
-    .array(dashboardOperationSchema)
-    .describe('Operations applied in order. May be empty when only `layout` is set.'),
-  layout: z
-    .string()
-    .min(1)
-    .max(1000)
-    .optional()
-    .describe(
-      'The user\'s own request about arrangement or size, e.g. "put the metrics in one row" or "make the table full width". Remembered for later calls. Omit it unless the user asked: panels are placed and sized automatically.'
-    ),
+  ...upsertDashboardSchema.shape,
 });
 
 /**
@@ -117,7 +106,7 @@ export interface GenerateDashboardToolDeps {
 /**
  * Kibana dashboard generation tool.
  *
- * Wraps the environment-agnostic {@link executeDashboardOperations} core with
+ * Wraps the environment-agnostic {@link executeDashboardUpsert} core with
  * Kibana attachment persistence so the LLM works against a lightweight reference:
  * - the prior payload is read server-side from `dashboardAttachmentId`,
  * - the generated payload is persisted as a `dashboard` attachment,
@@ -132,45 +121,41 @@ export const generateDashboardTool = ({
   return {
     id: dashboardTools.generateDashboard,
     type: ToolType.builtin,
-    description: `Generate or update a dashboard from ordered operations.
+    description: `Create or update a dashboard by describing the desired changes, keyed by id.
 
 Persists the resulting dashboard as an attachment and returns its id plus a compact summary (not the full payload). Reference the returned attachment id to render the dashboard; do not copy the payload into follow-up tool calls.
 
-Use operations[] to:
-1. set metadata
-2. add panels generated from a natural-language query (\`source: "request"\`; pick the engine with "renderer": Lens (default), Vega, or custom content for HTML-based layouts that Lens and Vega cannot express), by-value panels (\`source: "config"\`: markdown or ML anomaly panels), or existing visualization attachments by id (\`source: "attachment"\`)
-3. edit existing Lens, Vega, custom content, markdown, or ML anomaly panel content
-4. move panels between sections
-5. add / remove sections, including inline section panels during add_section
-6. remove panels
-7. add / remove controls (interactive filters pinned above the dashboard: dropdown, range slider, or time slider)
+- \`title\`, \`description\`, \`time_range\`: dashboard fields to set.
+- \`sections\`: sections to create or update.
+- \`panels\`: panels to create, edit, or move between sections, by id. To change a panel's kind, remove it and add a new panel with a new id. Panel content is generated from a natural-language query (\`source: "request"\`; pick the engine with "renderer": Lens (default), Vega, or custom content for HTML-based layouts that Lens and Vega cannot express), authored by value (\`source: "config"\`: markdown or ML anomaly panels), or taken from an existing visualization attachment (\`source: "attachment"\`).
+- \`controls\`: interactive filters pinned above the dashboard (dropdown, range slider, or time slider).
+- \`remove\`: ids of panels, sections, or controls to remove.
+- \`layout\`: the user's own arrangement or size request. Omit it otherwise.
 
-Panel positions and sizes are set automatically after the operations run. Set \`layout\` only to pass on the user's own arrangement or size request.`,
+Panel positions and sizes are arranged automatically after the changes are applied. The result lists the ids the call created and updated, so a mistyped id that created a new panel instead of updating one is visible.`,
     schema: generateDashboardSchema,
     handler: async (
-      { dashboardAttachmentId: previousAttachmentId, operations, layout },
+      { dashboardAttachmentId: previousAttachmentId, ...upsert },
       { logger, attachments, events, esClient, modelProvider, resultStore }
     ) => {
       try {
         const latestVersion = retrieveLatestVersion(attachments, previousAttachmentId);
         const isNewDashboard = !latestVersion;
 
-        if (isNewDashboard && !hasValidCreateMetadataOperations(operations)) {
+        if (isNewDashboard && !hasValidNewDashboardMetadata(upsert)) {
           logger.error(newDashboardMetadataErrorMessage);
           return missingNewDashboardMetadataErrorResult;
         }
 
         const dashboardAttachmentId = previousAttachmentId ?? uuidv4();
-        const { dashboardData, failures, panelAuthoringNotes, layoutOverrides } =
-          await executeDashboardOperations({
+        const { dashboardData, created, updated, failures, panelAuthoringNotes, layoutOverrides } =
+          await executeDashboardUpsert({
             dashboardData: latestVersion?.data,
-            operations,
-            layout,
+            upsert,
+            logger,
             layoutOverrides: previousAttachmentId
               ? await findLayoutOverrides(resultStore, previousAttachmentId)
               : undefined,
-            arrangeLayout: createLayoutArranger({ modelProvider }),
-            logger,
             resolvePanelContent: createPanelResolver({
               logger,
               modelProvider,
@@ -181,6 +166,7 @@ Panel positions and sizes are set automatically after the operations run. Set \`
             resolveControlFieldCapabilities: createControlFieldCapabilitiesResolver({
               esClient: esClient.asCurrentUser,
             }),
+            arrangeLayout: createLayoutArranger({ modelProvider }),
             finalizeDashboard: (generatedDashboardData) =>
               applyDefaultDashboardTimeRange({
                 dashboardData: generatedDashboardData,
@@ -207,8 +193,10 @@ Panel positions and sizes are set automatically after the operations run. Set \`
                     ])
                   )
                 ),
-                layout_overrides: layoutOverrides,
+                created,
+                updated,
                 failures: failures.length > 0 ? failures : undefined,
+                layout_overrides: layoutOverrides,
               },
             },
           ],

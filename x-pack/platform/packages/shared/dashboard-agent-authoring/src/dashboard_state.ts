@@ -31,6 +31,8 @@ export const indexPanelsById = (
   return index;
 };
 
+type DashboardControl = NonNullable<DashboardAttachmentData['pinned_panels']>[number];
+
 export const getSectionsById = ({
   panels,
 }: DashboardAttachmentData): Map<string, DashboardSection> =>
@@ -47,22 +49,12 @@ export const getSectionIdByPanelId = ({
     )
   );
 
-/**
- * Returns the lowest occupied y-position across top-level panels and section contents.
- */
-export const getWidgetsBottomY = (widgets: DashboardWidget[]): number => {
-  return widgets.reduce((maxY, widget) => {
-    if (isSection(widget)) {
-      const sectionBottom = widget.panels.reduce(
-        (sectionMaxY, panel) => Math.max(sectionMaxY, widget.grid.y + panel.grid.y + panel.grid.h),
-        widget.grid.y
-      );
-      return Math.max(maxY, sectionBottom);
-    }
+export const getControlId = (control: DashboardControl): string | undefined =>
+  (control as { id?: string }).id;
 
-    return Math.max(maxY, widget.grid.y + widget.grid.h);
-  }, 0);
-};
+export const getControlIds = ({
+  pinned_panels: controls = [],
+}: DashboardAttachmentData): string[] => controls.flatMap((control) => getControlId(control) ?? []);
 
 export const findSectionIndex = (panels: DashboardWidget[], sectionId: string): number => {
   return panels.findIndex((widget) => isSection(widget) && widget.id === sectionId);
