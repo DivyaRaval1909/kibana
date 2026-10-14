@@ -8,8 +8,8 @@
 import type { DashboardAttachmentData } from '@kbn/agent-builder-dashboards-common';
 import type { Logger } from '@kbn/logging';
 import type { ResolvePanelContent } from './operations/panels';
-import type { ResolveAttachmentPanel, ResolveControlFieldCapabilities } from './operations/types';
-import type { OperationFailure } from './utils';
+import type { ResolveAttachmentPanel, ResolveControlFieldCapabilities } from './types';
+import type { DashboardFailure } from './utils';
 import type { PanelAuthoringNote } from './resolve_panel';
 import { discardInvalidChanges, type ValidateDashboard } from './validate_dashboard';
 import { arrangeDashboardLayout, type ArrangeDashboardLayout } from './layout';
@@ -71,7 +71,7 @@ export const executeDashboardOperations = async ({
   validateDashboard,
 }: ExecuteDashboardOperationsParams): Promise<{
   dashboardData: DashboardAttachmentData;
-  failures: OperationFailure[];
+  failures: DashboardFailure[];
   panelAuthoringNotes: PanelAuthoringNote[];
   /** The user's layout overrides of the defaults, to pass to the next call. */
   layoutOverrides?: string;
@@ -84,7 +84,7 @@ export const executeDashboardOperations = async ({
     }
   );
   let nextDashboardData = structuredClone(originalDashboardData);
-  const failures: OperationFailure[] = [];
+  const failures: DashboardFailure[] = [];
   const panelAuthoringNotes: PanelAuthoringNote[] = [];
 
   const context = await prepareOperationExecution({

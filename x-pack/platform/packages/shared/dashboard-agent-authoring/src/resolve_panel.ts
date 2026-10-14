@@ -6,7 +6,7 @@
  */
 
 import type { AttachmentPanel } from '@kbn/agent-builder-dashboards-common';
-import type { OperationFailure } from './utils';
+import type { DashboardFailure } from './utils';
 
 /**
  * Type-agnostic primitives for inline panel content resolution: the resolution
@@ -27,7 +27,7 @@ export type PanelContentAttempt =
     }
   | {
       type: 'failure';
-      failure: OperationFailure;
+      failure: DashboardFailure;
     };
 
 /** Operations that can trigger inline panel resolution. */
@@ -53,7 +53,7 @@ export interface PanelResolutionRequestBase {
 }
 
 export const createPanelFailureResult = (
-  type: OperationFailure['type'],
+  type: DashboardFailure['type'],
   identifier: string,
   error: string
 ): Extract<PanelContentAttempt, { type: 'failure' }> => ({

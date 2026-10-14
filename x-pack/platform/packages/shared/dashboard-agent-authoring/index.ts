@@ -35,4 +35,4 @@ export type {
   ControlFieldCapability,
   ResolveAttachmentPanel,
   ResolveControlFieldCapabilities,
-} from './src/operations/types';
+} from './src/types';

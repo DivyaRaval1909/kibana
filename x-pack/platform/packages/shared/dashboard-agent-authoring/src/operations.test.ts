@@ -24,8 +24,8 @@ import {
 } from './operations';
 import { LENS_EMBEDDABLE_TYPE } from '@kbn/lens-common';
 import { VEGA_VIS_TYPE } from '@kbn/agent-builder-visualizations-common';
-import { DASHBOARD_OPERATION_FAILURE_TYPES } from './failure_types';
-import type { ControlFieldCapability, ResolveControlFieldCapabilities } from './operations/types';
+import { DASHBOARD_FAILURE_TYPES } from './failure_types';
+import type { ControlFieldCapability, ResolveControlFieldCapabilities } from './types';
 import type { ValidateDashboard } from './validate_dashboard';
 
 const usable = (type: string): ControlFieldCapability => ({ status: 'usable', type });
@@ -468,7 +468,7 @@ describe('executeDashboardOperations', () => {
       expect(otherPanels).toEqual([]);
       expect(result.failures).toEqual([
         expect.objectContaining({
-          type: DASHBOARD_OPERATION_FAILURE_TYPES.validateDashboard,
+          type: DASHBOARD_FAILURE_TYPES.validateDashboard,
           error: expect.stringContaining('Panel was not added'),
         }),
       ]);
@@ -495,7 +495,7 @@ describe('executeDashboardOperations', () => {
       expect(result.dashboardData).toEqual({ title: 'Renamed', panels: [] });
       expect(result.failures).toEqual([
         expect.objectContaining({
-          type: DASHBOARD_OPERATION_FAILURE_TYPES.validateDashboard,
+          type: DASHBOARD_FAILURE_TYPES.validateDashboard,
           identifier: 'time_range',
         }),
       ]);
@@ -1613,7 +1613,7 @@ describe('executeDashboardOperations', () => {
       expect(getPanelsOnly(result.dashboardData.panels)).toEqual([]);
       expect(result.failures).toEqual([
         {
-          type: DASHBOARD_OPERATION_FAILURE_TYPES.editPanels,
+          type: DASHBOARD_FAILURE_TYPES.editPanels,
           identifier: 'panel-1',
           error: 'Panel "panel-1" not found.',
         },
@@ -1706,7 +1706,7 @@ describe('executeDashboardOperations', () => {
       ]);
       expect(result.failures).toEqual([
         {
-          type: DASHBOARD_OPERATION_FAILURE_TYPES.editPanels,
+          type: DASHBOARD_FAILURE_TYPES.editPanels,
           identifier: 'panel-1',
           error:
             'Panel "panel-1" with type "aiOpsLogRateAnalysis" is not supported for inline editing.',
@@ -1765,7 +1765,7 @@ describe('executeDashboardOperations', () => {
         expect(resolvePanelContent).not.toHaveBeenCalled();
         expect(result.failures).toEqual([
           {
-            type: DASHBOARD_OPERATION_FAILURE_TYPES.editPanels,
+            type: DASHBOARD_FAILURE_TYPES.editPanels,
             identifier: 'cc-1',
             error:
               'Panel "cc-1" is a custom content panel. Edit it with source: "request", renderer: "custom_content".',
@@ -1798,7 +1798,7 @@ describe('executeDashboardOperations', () => {
         expect(resolvePanelContent).not.toHaveBeenCalled();
         expect(result.failures).toEqual([
           {
-            type: DASHBOARD_OPERATION_FAILURE_TYPES.editPanels,
+            type: DASHBOARD_FAILURE_TYPES.editPanels,
             identifier: 'vega-1',
             error: `Panel "vega-1" with type "${VEGA_VIS_TYPE}" cannot be edited with renderer: "lens". Use renderer: "vega".`,
           },
@@ -1967,12 +1967,12 @@ describe('executeDashboardOperations', () => {
 
       expect(result.failures).toEqual([
         {
-          type: DASHBOARD_OPERATION_FAILURE_TYPES.editPanels,
+          type: DASHBOARD_FAILURE_TYPES.editPanels,
           identifier: 'panel-1',
           error: duplicateError,
         },
         {
-          type: DASHBOARD_OPERATION_FAILURE_TYPES.editPanels,
+          type: DASHBOARD_FAILURE_TYPES.editPanels,
           identifier: 'panel-1',
           error: duplicateError,
         },
@@ -2074,7 +2074,7 @@ describe('executeDashboardOperations', () => {
       expect(resolvePanelContent).not.toHaveBeenCalled();
       expect(result.failures).toEqual([
         {
-          type: DASHBOARD_OPERATION_FAILURE_TYPES.editPanels,
+          type: DASHBOARD_FAILURE_TYPES.editPanels,
           identifier: 'panel-1',
           error: `Panel "panel-1" with type "${LENS_EMBEDDABLE_TYPE}" cannot be edited as markdown. Use source: "request" with the panel's renderer for Lens, Vega, or custom content panels.`,
         },
@@ -2173,7 +2173,7 @@ describe('executeDashboardOperations', () => {
       expect(resolvePanelContent).not.toHaveBeenCalled();
       expect(result.failures).toEqual([
         {
-          type: DASHBOARD_OPERATION_FAILURE_TYPES.editPanels,
+          type: DASHBOARD_FAILURE_TYPES.editPanels,
           identifier: 'panel-1',
           error: `Panel "panel-1" with type "${LENS_EMBEDDABLE_TYPE}" cannot be edited as anomaly charts. Use source: "request" with the panel's renderer for Lens, Vega, or custom content panels.`,
         },
@@ -2265,7 +2265,7 @@ describe('executeDashboardOperations', () => {
       expect(resolvePanelContent).not.toHaveBeenCalled();
       expect(result.failures).toEqual([
         {
-          type: DASHBOARD_OPERATION_FAILURE_TYPES.editPanels,
+          type: DASHBOARD_FAILURE_TYPES.editPanels,
           identifier: 'panel-1',
           error: `Panel "panel-1" with type "${LENS_EMBEDDABLE_TYPE}" cannot be edited as anomaly swim lane. Use source: "request" with the panel's renderer for Lens, Vega, or custom content panels.`,
         },
@@ -2355,7 +2355,7 @@ describe('executeDashboardOperations', () => {
       expect(resolvePanelContent).not.toHaveBeenCalled();
       expect(result.failures).toEqual([
         {
-          type: DASHBOARD_OPERATION_FAILURE_TYPES.editPanels,
+          type: DASHBOARD_FAILURE_TYPES.editPanels,
           identifier: 'panel-1',
           error: `Panel "panel-1" with type "${LENS_EMBEDDABLE_TYPE}" cannot be edited as single metric viewer. Use source: "request" with the panel's renderer for Lens, Vega, or custom content panels.`,
         },
@@ -2929,7 +2929,7 @@ describe('add_controls / remove_controls operations', () => {
 
       expect(getEsqlQueries(dashboardData)).toEqual([]);
       expect(failures).toEqual([
-        { type: DASHBOARD_OPERATION_FAILURE_TYPES.addControls, identifier: 'field', error },
+        { type: DASHBOARD_FAILURE_TYPES.addControls, identifier: 'field', error },
       ]);
     });
 
@@ -2956,7 +2956,7 @@ describe('add_controls / remove_controls operations', () => {
 
       expect(failures).toEqual([
         {
-          type: DASHBOARD_OPERATION_FAILURE_TYPES.addControls,
+          type: DASHBOARD_FAILURE_TYPES.addControls,
           identifier: 'http_method, status_code',
           error: notMapped,
         },

@@ -164,7 +164,7 @@ export const getAttemptedControls = (steps: Step[]): AttemptedControl[] =>
   });
 
 /** A `generate_dashboard` operation the server could not apply, as reported under `data.failures`. */
-export interface OperationFailure {
+export interface DashboardFailure {
   type: string;
   identifier: string;
   error: string;
@@ -173,7 +173,7 @@ export interface OperationFailure {
 }
 
 /** Failures every `generate_dashboard` call reported, optionally only those of one operation type. */
-export const getOperationFailures = (steps: Step[], type?: string): OperationFailure[] =>
+export const getOperationFailures = (steps: Step[], type?: string): DashboardFailure[] =>
   getGenerateDashboardSteps(steps).flatMap((step, call) =>
     (Array.isArray(step.results) ? step.results : [])
       .flatMap((result) =>
@@ -182,7 +182,7 @@ export const getOperationFailures = (steps: Step[], type?: string): OperationFai
           : []
       )
       .filter(
-        (failure): failure is Omit<OperationFailure, 'call'> =>
+        (failure): failure is Omit<DashboardFailure, 'call'> =>
           isRecord(failure) &&
           typeof failure.type === 'string' &&
           typeof failure.identifier === 'string' &&
@@ -197,5 +197,5 @@ export const getOperationFailures = (steps: Step[], type?: string): OperationFai
       }))
   );
 
-export const getAddControlsFailures = (steps: Step[]): OperationFailure[] =>
+export const getAddControlsFailures = (steps: Step[]): DashboardFailure[] =>
   getOperationFailures(steps, ADD_CONTROLS_OPERATION);
