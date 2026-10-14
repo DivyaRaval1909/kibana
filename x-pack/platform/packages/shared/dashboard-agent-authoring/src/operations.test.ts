@@ -175,13 +175,11 @@ describe('executeDashboardOperations', () => {
           {
             source: 'attachment',
             attachment_id: 'metric-vis',
-            grid: { x: 0, y: 0, w: 24, h: 9 },
           },
           {
             source: 'config',
             type: 'markdown',
             config: { content: '### Updated summary', settings: { open_links_in_new_tab: true } },
-            grid: { x: 0, y: 9, w: 48, h: 5 },
           },
         ],
       },
@@ -199,11 +197,9 @@ describe('executeDashboardOperations', () => {
       expect.objectContaining({
         type: LENS_EMBEDDABLE_TYPE,
         config: { type: 'metric' },
-        grid: { x: 0, y: 0, w: 24, h: 9 },
       }),
       expect.objectContaining({
         type: MARKDOWN_EMBEDDABLE_TYPE,
-        grid: { x: 0, y: 9, w: 48, h: 5 },
       }),
     ]);
   });
@@ -222,12 +218,10 @@ describe('executeDashboardOperations', () => {
             {
               source: 'attachment',
               attachment_id: 'metric-vis',
-              grid: { x: 0, y: 0, w: 24, h: 9 },
             },
             {
               source: 'attachment',
               attachment_id: 'metric-vis',
-              grid: { x: 24, y: 0, w: 24, h: 9 },
             },
           ],
         },
@@ -237,7 +231,6 @@ describe('executeDashboardOperations', () => {
             {
               source: 'attachment',
               attachment_id: 'metric-vis',
-              grid: { x: 0, y: 9, w: 12, h: 5 },
             },
           ],
         },
@@ -250,17 +243,14 @@ describe('executeDashboardOperations', () => {
       expect.objectContaining({
         type: LENS_EMBEDDABLE_TYPE,
         config: { type: 'metric' },
-        grid: { x: 0, y: 0, w: 24, h: 9 },
       }),
       expect.objectContaining({
         type: LENS_EMBEDDABLE_TYPE,
         config: { type: 'metric' },
-        grid: { x: 24, y: 0, w: 24, h: 9 },
       }),
       expect.objectContaining({
         type: LENS_EMBEDDABLE_TYPE,
         config: { type: 'metric' },
-        grid: { x: 0, y: 9, w: 12, h: 5 },
       }),
     ]);
     expect(result.failures).toEqual([]);
@@ -281,31 +271,26 @@ describe('executeDashboardOperations', () => {
               source: 'config',
               type: 'markdown',
               config: { content: '### Summary', settings: { open_links_in_new_tab: true } },
-              grid: { x: 0, y: 0, w: 24, h: 4 },
             },
             {
               source: 'attachment',
               attachment_id: 'metric-vis',
               sectionId: 'section-a',
-              grid: { x: 0, y: 0, w: 24, h: 9 },
             },
             {
               source: 'request',
               chartType: SupportedChartType.Metric,
               query: 'show total requests',
-              grid: { x: 24, y: 0, w: 24, h: 9 },
             },
             {
               source: 'attachment',
               attachment_id: 'metric-vis',
-              grid: { x: 0, y: 9, w: 24, h: 9 },
             },
             {
               source: 'request',
               chartType: SupportedChartType.Metric,
               query: 'show p95 latency',
               sectionId: 'section-a',
-              grid: { x: 24, y: 0, w: 24, h: 9 },
             },
           ],
         },
@@ -339,19 +324,16 @@ describe('executeDashboardOperations', () => {
       expect.objectContaining({
         type: LENS_EMBEDDABLE_TYPE,
         config: { type: 'metric' },
-        grid: { x: 24, y: 0, w: 24, h: 9 },
       }),
       expect.objectContaining({
         type: LENS_EMBEDDABLE_TYPE,
         config: { type: 'metric' },
-        grid: { x: 0, y: 9, w: 24, h: 9 },
       }),
     ]);
     expect(getSections(result.dashboardData.panels)[0].panels).toEqual([
       expect.objectContaining({
         type: LENS_EMBEDDABLE_TYPE,
         config: { type: 'metric' },
-        grid: { x: 0, y: 0, w: 24, h: 9 },
       }),
     ]);
     expect(result.failures).toEqual([
@@ -361,15 +343,15 @@ describe('executeDashboardOperations', () => {
         error: 'ES|QL generation failed',
       },
     ]);
-    const generatedPanel = getPanelsOnly(result.dashboardData.panels).find(
-      (panel) => panel.grid.x === 24 && panel.grid.y === 0
-    );
     expect(result.panelAuthoringNotes).toEqual([
       {
-        panelId: generatedPanel?.id,
+        panelId: expect.any(String),
         authoringNote: 'Created a titleless metric showing total requests.',
       },
     ]);
+    expect(getPanelsOnly(result.dashboardData.panels).map(({ id }) => id)).toContain(
+      result.panelAuthoringNotes[0].panelId
+    );
   });
 
   it('preserves dashboard metadata while mutating panels', async () => {
@@ -386,7 +368,6 @@ describe('executeDashboardOperations', () => {
             {
               source: 'attachment',
               attachment_id: 'metric-vis',
-              grid: { x: 0, y: 0, w: 12, h: 5 },
             },
           ],
         },
@@ -419,7 +400,6 @@ describe('executeDashboardOperations', () => {
         {
           operation: 'add_section',
           title: 'Overview',
-          grid: { y: 12 },
         },
       ],
       logger,
@@ -431,7 +411,7 @@ describe('executeDashboardOperations', () => {
       id: expect.any(String),
       title: 'Overview',
       collapsed: false,
-      grid: { y: 12 },
+      grid: { y: 0 },
       panels: [],
     });
   });
@@ -460,13 +440,11 @@ describe('executeDashboardOperations', () => {
                 source: 'request',
                 chartType: SupportedChartType.Metric,
                 query: 'show total requests',
-                grid: { x: 0, y: 0, w: 24, h: 9 },
               },
               {
                 source: 'request',
                 chartType: SupportedChartType.Metric,
                 query: 'show p95 latency',
-                grid: { x: 24, y: 0, w: 24, h: 9 },
               },
             ],
           },
@@ -533,8 +511,8 @@ describe('executeDashboardOperations', () => {
         panels: [topPanel, createSection('existing-section', 'Existing', 0, [nestedPanel])],
       };
       const operations: DashboardOperation[] = [
-        { operation: 'add_section', key: 'overview', title: 'Metrics', grid: { y: 10 } },
-        { operation: 'add_section', key: 'details', title: 'Metrics', grid: { y: 20 } },
+        { operation: 'add_section', key: 'overview', title: 'Metrics' },
+        { operation: 'add_section', key: 'details', title: 'Metrics' },
         {
           operation: 'update_panel_layouts',
           panels: [
@@ -542,7 +520,6 @@ describe('executeDashboardOperations', () => {
             {
               panelId: nestedPanel.id,
               sectionId: 'details',
-              grid: { x: 0, y: 2, w: 48, h: 8 },
             },
           ],
         },
@@ -554,14 +531,12 @@ describe('executeDashboardOperations', () => {
               type: 'markdown',
               config: { content: 'Summary', settings: { open_links_in_new_tab: true } },
               sectionId: 'overview',
-              grid: { x: 0, y: 9, w: 48, h: 5 },
             },
             {
               source: 'request',
               chartType: SupportedChartType.Metric,
               query: 'show total requests',
               sectionId: 'details',
-              grid: { x: 0, y: 10, w: 24, h: 9 },
             },
           ],
         },
@@ -585,7 +560,7 @@ describe('executeDashboardOperations', () => {
         }),
       ]);
       expect(details.panels).toEqual([
-        { ...nestedPanel, grid: { x: 0, y: 2, w: 48, h: 8 } },
+        nestedPanel,
         expect.objectContaining({ type: LENS_EMBEDDABLE_TYPE, config: { type: 'metric' } }),
       ]);
       expect(overview.id).not.toBe('overview');
@@ -603,7 +578,7 @@ describe('executeDashboardOperations', () => {
       const result = await executeDashboardOperations({
         dashboardData: { title: 'Test', panels: [panel] },
         operations: [
-          { operation: 'add_section', key: 'overview', title: 'Overview', grid: { y: 0 } },
+          { operation: 'add_section', key: 'overview', title: 'Overview' },
           {
             operation: 'update_panel_layouts',
             panels: [{ panelId: panel.id, sectionId: 'overview' }],
@@ -618,7 +593,7 @@ describe('executeDashboardOperations', () => {
 
     it.each([false, true])('rejects duplicate keys (first section removed: %s)', async (remove) => {
       const operations: DashboardOperation[] = [
-        { operation: 'add_section', key: 'overview', title: 'Overview', grid: { y: 0 } },
+        { operation: 'add_section', key: 'overview', title: 'Overview' },
       ];
       if (remove) {
         operations.push({ operation: 'remove_section', id: 'overview', panelAction: 'promote' });
@@ -627,7 +602,6 @@ describe('executeDashboardOperations', () => {
         operation: 'add_section',
         key: 'overview',
         title: 'Another section',
-        grid: { y: 10 },
       });
 
       await expect(executeDashboardOperations({ operations, logger })).rejects.toThrow(
@@ -639,9 +613,7 @@ describe('executeDashboardOperations', () => {
       await expect(
         executeDashboardOperations({
           dashboardData: { title: 'Test', panels: [createSection('overview', 'Existing', 0)] },
-          operations: [
-            { operation: 'add_section', key: 'overview', title: 'New', grid: { y: 10 } },
-          ],
+          operations: [{ operation: 'add_section', key: 'overview', title: 'New' }],
           logger,
         })
       ).rejects.toThrow('Section key "overview" conflicts with an existing section id.');
@@ -663,7 +635,6 @@ describe('executeDashboardOperations', () => {
             operation: 'add_section',
             key: 'overview',
             title: 'Overview',
-            grid: { y: 0 },
           });
         }
 
@@ -678,9 +649,7 @@ describe('executeDashboardOperations', () => {
       const panel = createLensPanel('panel');
       const created = await executeDashboardOperations({
         dashboardData: { title: 'Test', panels: [panel] },
-        operations: [
-          { operation: 'add_section', key: 'overview', title: 'Overview', grid: { y: 0 } },
-        ],
+        operations: [{ operation: 'add_section', key: 'overview', title: 'Overview' }],
         logger,
       });
 
@@ -717,7 +686,6 @@ describe('executeDashboardOperations', () => {
           operation: 'add_section',
           key,
           title: 'Overview',
-          grid: { y: 0 },
         }).success
       ).toBe(false);
     });
@@ -734,19 +702,16 @@ describe('executeDashboardOperations', () => {
         {
           operation: 'add_section',
           title: 'Overview',
-          grid: { y: 12 },
           panels: [
             {
               source: 'request',
               chartType: SupportedChartType.Metric,
               query: 'show total requests',
-              grid: { x: 0, y: 0, w: 24, h: 9 },
             },
             {
               source: 'request',
               chartType: SupportedChartType.Metric,
               query: 'show error rate',
-              grid: { x: 24, y: 0, w: 24, h: 9 },
             },
           ],
         },
@@ -773,17 +738,15 @@ describe('executeDashboardOperations', () => {
       id: expect.any(String),
       title: 'Overview',
       collapsed: false,
-      grid: { y: 12 },
+      grid: { y: 0 },
       panels: [
         expect.objectContaining({
           type: LENS_EMBEDDABLE_TYPE,
           config: { type: 'metric' },
-          grid: { x: 0, y: 0, w: 24, h: 9 },
         }),
         expect.objectContaining({
           type: LENS_EMBEDDABLE_TYPE,
           config: { type: 'bar' },
-          grid: { x: 24, y: 0, w: 24, h: 9 },
         }),
       ],
     });
@@ -800,19 +763,16 @@ describe('executeDashboardOperations', () => {
         {
           operation: 'add_section',
           title: 'Overview',
-          grid: { y: 12 },
           panels: [
             {
               source: 'request',
               chartType: SupportedChartType.Metric,
               query: 'show total requests',
-              grid: { x: 0, y: 0, w: 24, h: 9 },
             },
             {
               source: 'request',
               chartType: SupportedChartType.Metric,
               query: 'show p95 latency',
-              grid: { x: 24, y: 0, w: 24, h: 9 },
             },
           ],
         },
@@ -841,7 +801,6 @@ describe('executeDashboardOperations', () => {
       expect.objectContaining({
         type: LENS_EMBEDDABLE_TYPE,
         config: { type: 'metric' },
-        grid: { x: 0, y: 0, w: 24, h: 9 },
       }),
     ]);
     expect(result.failures).toEqual([
@@ -869,18 +828,15 @@ describe('executeDashboardOperations', () => {
         {
           operation: 'add_section',
           title: 'Overview',
-          grid: { y: 12 },
           panels: [
             {
               source: 'config',
               type: 'markdown',
               config: { content: '### Section Summary', settings: { open_links_in_new_tab: true } },
-              grid: { x: 0, y: 0, w: 24, h: 4 },
             },
             {
               source: 'attachment',
               attachment_id: 'metric-vis',
-              grid: { x: 24, y: 0, w: 24, h: 9 },
             },
           ],
         },
@@ -899,7 +855,6 @@ describe('executeDashboardOperations', () => {
       expect.objectContaining({
         type: LENS_EMBEDDABLE_TYPE,
         config: { type: 'metric' },
-        grid: { x: 24, y: 0, w: 24, h: 9 },
       }),
     ]);
   });
@@ -928,26 +883,22 @@ describe('executeDashboardOperations', () => {
         {
           operation: 'add_section',
           title: 'Overview',
-          grid: { y: 0 },
           panels: [
             {
               source: 'request',
               chartType: SupportedChartType.Metric,
               query: 'show total requests',
-              grid: { x: 0, y: 0, w: 24, h: 9 },
             },
           ],
         },
         {
           operation: 'add_section',
           title: 'Errors',
-          grid: { y: 1 },
           panels: [
             {
               source: 'request',
               chartType: SupportedChartType.Metric,
               query: 'show error rate',
-              grid: { x: 24, y: 0, w: 24, h: 9 },
             },
           ],
         },
@@ -1025,13 +976,11 @@ describe('executeDashboardOperations', () => {
         {
           operation: 'add_section',
           title: 'Overview',
-          grid: { y: 0 },
           panels: [
             {
               source: 'request',
               chartType: SupportedChartType.Metric,
               query: 'show total requests',
-              grid: { x: 0, y: 0, w: 24, h: 9 },
             },
           ],
         },
@@ -1042,7 +991,6 @@ describe('executeDashboardOperations', () => {
               source: 'request',
               chartType: SupportedChartType.Metric,
               query: 'show error rate',
-              grid: { x: 0, y: 1, w: 24, h: 9 },
             },
           ],
         },
@@ -1107,13 +1055,11 @@ describe('executeDashboardOperations', () => {
           {
             operation: 'add_section',
             title: 'Overview',
-            grid: { y: 0 },
             panels: [
               {
                 source: 'request',
                 chartType: SupportedChartType.Metric,
                 query: 'show total requests',
-                grid: { x: 0, y: 0, w: 24, h: 9 },
               },
             ],
           },
@@ -1124,7 +1070,6 @@ describe('executeDashboardOperations', () => {
                 source: 'request',
                 chartType: SupportedChartType.Metric,
                 query: 'show error rate',
-                grid: { x: 24, y: 0, w: 24, h: 9 },
               },
             ],
           },
@@ -1149,7 +1094,6 @@ describe('executeDashboardOperations', () => {
               source: 'attachment',
               attachment_id: 'metric-vis',
               sectionId: 'section-a',
-              grid: { x: 12, y: 0, w: 12, h: 5 },
             },
           ],
         },
@@ -1165,7 +1109,6 @@ describe('executeDashboardOperations', () => {
       expect.objectContaining({
         type: LENS_EMBEDDABLE_TYPE,
         config: { type: 'metric' },
-        grid: { x: 12, y: 0, w: 12, h: 5 },
       }),
     ]);
   });
@@ -1189,9 +1132,9 @@ describe('executeDashboardOperations', () => {
     const sections = getSections(result.dashboardData.panels);
     expect(sections).toHaveLength(0);
     expect(result.dashboardData.panels).toEqual([
-      expect.objectContaining({ id: 'top-1', grid: { x: 0, y: 0, w: 24, h: 9 } }),
-      expect.objectContaining({ id: 'section-a-1', grid: { x: 0, y: 9, w: 24, h: 9 } }),
-      expect.objectContaining({ id: 'section-a-2', grid: { x: 0, y: 18, w: 24, h: 9 } }),
+      expect.objectContaining({ id: 'top-1' }),
+      expect.objectContaining({ id: 'section-a-1' }),
+      expect.objectContaining({ id: 'section-a-2' }),
     ]);
   });
 
@@ -1260,7 +1203,6 @@ describe('executeDashboardOperations', () => {
               source: 'config',
               type: 'markdown',
               config: { content: '### Section Summary', settings: { open_links_in_new_tab: true } },
-              grid: { x: 0, y: 0, w: 24, h: 4 },
               sectionId: 'section-a',
             },
           ],
@@ -1276,13 +1218,12 @@ describe('executeDashboardOperations', () => {
       expect.objectContaining({
         type: MARKDOWN_EMBEDDABLE_TYPE,
         config: { content: '### Section Summary', settings: { open_links_in_new_tab: true } },
-        grid: { x: 0, y: 0, w: 24, h: 4 },
       }),
     ]);
   });
 
   describe('update_panel_layouts', () => {
-    it('updates panel grid without changing its current location', async () => {
+    it('applies the sizes the layout step returns', async () => {
       const result = await executeDashboardOperations({
         dashboardData: {
           title: 'Test dashboard',
@@ -1291,27 +1232,57 @@ describe('executeDashboardOperations', () => {
             createSection('section-a', 'Section A', 0, [createLensPanel('section-panel-1', 0)]),
           ],
         },
+        operations: [],
+        layout: 'make section-panel-1 smaller',
+        logger,
+        arrangeLayout: async () => ({
+          containers: [
+            { section: null, rows: [{ h: 1, items: [{ id: 'section-a', w: 48 }] }] },
+            {
+              section: 'section-a',
+              rows: [{ h: 6, items: [{ id: 'section-panel-1', w: 12 }] }],
+            },
+          ],
+          layoutOverrides: 'section-panel-1 is 12 wide and 6 high.',
+        }),
+      });
+
+      expect(result.failures).toEqual([]);
+      expect(result.layoutOverrides).toBe('section-panel-1 is 12 wide and 6 high.');
+      expect(getSections(result.dashboardData.panels)[0].panels).toEqual([
+        expect.objectContaining({
+          id: 'section-panel-1',
+          grid: { x: 0, y: 0, w: 12, h: 6 },
+          config: { type: 'metric' },
+        }),
+      ]);
+    });
+
+    it('packs new panels below existing panels, which keep their place, without a layout call', async () => {
+      const result = await executeDashboardOperations({
+        dashboardData: { title: 'Test dashboard', panels: [createLensPanel('existing', 0)] },
         operations: [
           {
-            operation: 'update_panel_layouts',
+            operation: 'add_panels',
             panels: [
+              { source: 'attachment', attachment_id: 'metric-vis' },
               {
-                panelId: 'section-panel-1',
-                grid: { x: 12, y: 4, w: 12, h: 6 },
+                source: 'config',
+                type: 'markdown',
+                config: { content: 'Notes', settings: { open_links_in_new_tab: true } },
               },
             ],
           },
         ],
         logger,
+        resolveAttachmentPanel: resolveMetricAttachment,
       });
 
-      const sections = getSections(result.dashboardData.panels);
-      expect(sections[0].panels).toEqual([
-        expect.objectContaining({
-          id: 'section-panel-1',
-          grid: { x: 12, y: 4, w: 12, h: 6 },
-          config: { type: 'metric' },
-        }),
+      expect(result.failures).toEqual([]);
+      expect(getPanelsOnly(result.dashboardData.panels).map(({ grid }) => grid)).toEqual([
+        { x: 0, y: 0, w: 24, h: 9 },
+        { x: 0, y: 9, w: 12, h: 5 },
+        { x: 0, y: 14, w: 48, h: 3 },
       ]);
     });
 
@@ -1329,7 +1300,6 @@ describe('executeDashboardOperations', () => {
               {
                 panelId: 'top-1',
                 sectionId: 'section-a',
-                grid: { x: 24, y: 0, w: 24, h: 9 },
               },
             ],
           },
@@ -1344,7 +1314,6 @@ describe('executeDashboardOperations', () => {
       expect(sections[0].panels).toEqual([
         expect.objectContaining({
           id: 'top-1',
-          grid: { x: 24, y: 0, w: 24, h: 9 },
           config: { type: 'metric' },
         }),
       ]);
@@ -1366,7 +1335,6 @@ describe('executeDashboardOperations', () => {
               {
                 panelId: 'section-panel-1',
                 sectionId: null,
-                grid: { x: 0, y: 20, w: 24, h: 9 },
               },
             ],
           },
@@ -1381,7 +1349,6 @@ describe('executeDashboardOperations', () => {
       expect(panelsOnly).toEqual([
         expect.objectContaining({
           id: 'section-panel-1',
-          grid: { x: 0, y: 20, w: 24, h: 9 },
           config: { type: 'metric' },
         }),
       ]);
@@ -1397,7 +1364,7 @@ describe('executeDashboardOperations', () => {
         operations: [
           {
             operation: 'update_panel_layouts',
-            panels: [{ panelId: 'missing-panel', grid: { x: 0, y: 0, w: 24, h: 9 } }],
+            panels: [{ panelId: 'missing-panel', sectionId: null }],
           },
         ],
         logger,
@@ -1429,14 +1396,12 @@ describe('executeDashboardOperations', () => {
                 source: 'request',
                 chartType: SupportedChartType.Metric,
                 query: 'show total requests',
-                grid: { x: 0, y: 0, w: 24, h: 9 },
               },
               {
                 source: 'request',
                 chartType: SupportedChartType.Metric,
                 query: 'show error rate',
                 sectionId: 'section-a',
-                grid: { x: 24, y: 0, w: 24, h: 9 },
               },
             ],
           },
@@ -1461,14 +1426,12 @@ describe('executeDashboardOperations', () => {
         expect.objectContaining({
           type: LENS_EMBEDDABLE_TYPE,
           config: { type: 'metric' },
-          grid: { x: 0, y: 0, w: 24, h: 9 },
         }),
       ]);
       expect(sections[0].panels).toEqual([
         expect.objectContaining({
           type: LENS_EMBEDDABLE_TYPE,
           config: { type: 'bar' },
-          grid: { x: 24, y: 0, w: 24, h: 9 },
         }),
       ]);
     });
@@ -1672,13 +1635,11 @@ describe('executeDashboardOperations', () => {
                 source: 'request',
                 chartType: SupportedChartType.Metric,
                 query: 'show total requests',
-                grid: { x: 0, y: 0, w: 24, h: 9 },
               },
               {
                 source: 'request',
                 chartType: SupportedChartType.Metric,
                 query: 'show p95 latency',
-                grid: { x: 24, y: 0, w: 24, h: 9 },
               },
             ],
           },
@@ -2598,7 +2559,6 @@ describe('executeDashboardOperations', () => {
                 source: 'config',
                 type: 'markdown',
                 config: { content: '### Summary', settings: { open_links_in_new_tab: true } },
-                grid: { x: 0, y: 0, w: 48, h: 5 },
                 sectionId: 'nonexistent-section',
               },
             ],
@@ -2634,7 +2594,6 @@ describe('executeDashboardOperations', () => {
               renderer: 'custom_content',
               query: 'Show error rate KPI',
               esql: 'FROM logs-* | STATS error_rate = AVG(error) BY host',
-              grid: { x: 0, y: 0, w: 24, h: 6 },
             },
           ],
         },
@@ -2659,7 +2618,6 @@ describe('executeDashboardOperations', () => {
           esql_query: ['FROM logs-* | STATS error_rate = AVG(error) BY host'],
           template: '<div>KPI</div>',
         },
-        grid: { x: 0, y: 0, w: 24, h: 6 },
       }),
     ]);
   });
@@ -2672,7 +2630,6 @@ describe('executeDashboardOperations', () => {
           source: 'config',
           type: 'markdown',
           config: { content: '## Hi', settings: { open_links_in_new_tab: true } },
-          grid: { x: 0, y: 0, w: 48, h: 5 },
         },
       ],
     });
@@ -2688,7 +2645,6 @@ describe('executeDashboardOperations', () => {
           source: 'config',
           type: 'markdown',
           config: { settings: { open_links_in_new_tab: false } },
-          grid: { x: 0, y: 0, w: 48, h: 5 },
         },
       ],
     });
@@ -3121,7 +3077,6 @@ describe('add_controls / remove_controls operations', () => {
               {
                 source: 'attachment',
                 attachment_id: 'att-1',
-                grid: { x: 0, y: 0, w: 24, h: 10 },
               },
             ],
           },
@@ -3151,12 +3106,10 @@ describe('add_controls / remove_controls operations', () => {
           {
             operation: 'add_section',
             title: 'Overview',
-            grid: { y: 0 },
             panels: [
               {
                 source: 'attachment',
                 attachment_id: 'att-1',
-                grid: { x: 0, y: 0, w: 24, h: 10 },
               },
             ],
           },
@@ -3182,12 +3135,10 @@ describe('add_controls / remove_controls operations', () => {
           {
             operation: 'add_section',
             title: 'Overview',
-            grid: { y: 0 },
             panels: [
               {
                 source: 'attachment',
                 attachment_id: 'att-missing',
-                grid: { x: 0, y: 0, w: 24, h: 10 },
               },
             ],
           },
@@ -3221,11 +3172,10 @@ describe('add_controls / remove_controls operations', () => {
           {
             operation: 'add_panels',
             panels: [
-              { source: 'attachment', attachment_id: 'att-1', grid: { x: 0, y: 0, w: 24, h: 10 } },
+              { source: 'attachment', attachment_id: 'att-1' },
               {
                 source: 'attachment',
                 attachment_id: 'att-missing',
-                grid: { x: 24, y: 0, w: 24, h: 10 },
               },
             ],
           },
@@ -3253,7 +3203,6 @@ describe('add_controls / remove_controls operations', () => {
               {
                 source: 'attachment',
                 attachment_id: 'att-missing',
-                grid: { x: 0, y: 0, w: 24, h: 10 },
               },
             ],
           },

@@ -6,13 +6,13 @@
  */
 
 import { v4 as uuidv4 } from 'uuid';
-import { sectionGridSchema } from '@kbn/agent-builder-dashboards-common';
 import type { AttachmentPanel, DashboardSection } from '@kbn/agent-builder-dashboards-common';
 import { z } from '@kbn/zod/v4';
 import { createPanelInputMaterializer } from './panel_creation';
 import { defineOperation } from './types';
 import { addSectionPanelItemSchema } from './panels';
 import { findSectionIndex } from '../dashboard_state';
+import { getDefaultPanelSize } from '../layout/panel_sizes';
 
 export const addSectionOperation = defineOperation({
   schema: z.object({
@@ -26,13 +26,12 @@ export const addSectionOperation = defineOperation({
         'Optional key for referencing this new section in later operations in the same call, using sectionId (or remove_section.id). Must be unique within the call and must not match an existing section id. Not saved; future calls use the generated section id from the result.'
       ),
     title: z.string().max(256).describe('Section title.'),
-    grid: sectionGridSchema,
     panels: z
       .array(addSectionPanelItemSchema)
       .min(1)
       .optional()
       .describe(
-        "Creates new panels inside the section, with section-relative grids. To group existing panels, omit this field and move their original panelIds with update_panel_layouts using this section's key."
+        "Creates new panels inside the section. To group existing panels, omit this field and move their original panelIds with update_panel_layouts using this section's key."
       ),
   }),
   handler: ({ dashboardData, operation, operationIndex, context }) => {
@@ -50,7 +49,7 @@ export const addSectionOperation = defineOperation({
       id: uuidv4(),
       title: operation.title,
       collapsed: false,
-      grid: operation.grid,
+      grid: { y: 0 },
       panels: [],
     };
 
@@ -63,18 +62,19 @@ export const addSectionOperation = defineOperation({
         resolveAttachmentPanel: context.resolveAttachmentPanel,
       });
 
-      const materialized = operation.panels.map((item, i) => ({
-        item,
-        panel: materializePanelInput(item, i),
-      }));
+      const materialized = operation.panels.map(materializePanelInput);
 
       const sectionPanels: AttachmentPanel[] = [];
 
-      for (const { item, panel } of materialized) {
+      for (const panel of materialized) {
         if (panel === undefined) continue;
 
         const panelId = uuidv4();
-        sectionPanels.push({ id: panelId, ...panel.panelContent, grid: item.grid });
+        sectionPanels.push({
+          id: panelId,
+          ...panel.panelContent,
+          grid: { x: 0, y: 0, ...getDefaultPanelSize(panel.panelContent) },
+        });
         if (panel.authoringNote) {
           context.panelAuthoringNotes.push({
             panelId,

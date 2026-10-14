@@ -5,13 +5,8 @@
  * 2.0.
  */
 
-import { panelGridSchema } from '@kbn/agent-builder-dashboards-common';
 import { z } from '@kbn/zod/v4';
-import {
-  appendPanelsToDashboard,
-  removePanelsFromDashboard,
-  updatePanelInDashboard,
-} from '../dashboard_state';
+import { appendPanelsToDashboard, removePanelsFromDashboard } from '../dashboard_state';
 import { DASHBOARD_OPERATION_FAILURE_TYPES } from '../failure_types';
 import { defineOperation } from './types';
 
@@ -21,75 +16,40 @@ export const updatePanelLayoutsOperation = defineOperation({
     panels: z
       .array(
         z.object({
-          panelId: z.string().max(256).describe('ID of the panel to update.'),
-          grid: panelGridSchema
-            .optional()
-            .describe('New grid position/size. Omit to keep the current grid.'),
+          panelId: z.string().max(256).describe('ID of the panel to move.'),
           sectionId: z
             .string()
             .max(256)
             .nullable()
-            .optional()
             .describe(
-              'Move panel to an existing section id or the key of an add_section earlier in this call. null promotes to top level. Omit to keep the current location.'
+              'Move panel to an existing section id or the key of an add_section earlier in this call. null promotes to top level.'
             ),
         })
       )
-      .min(1),
+      .min(1)
+      .describe('Panels to move between sections. Positions and sizes are set automatically.'),
   }),
   handler: ({ dashboardData, operation, context }) => {
     let nextDashboardData = dashboardData;
 
-    const recordMissingPanelFailure = (panelId: string) => {
-      context.failures.push({
-        type: DASHBOARD_OPERATION_FAILURE_TYPES.updatePanelLayouts,
-        identifier: panelId,
-        error: `Panel "${panelId}" not found.`,
-      });
-    };
-
-    for (const { panelId, grid, sectionId } of operation.panels) {
-      // sectionId omitted: do not move the panel
-      if (sectionId === undefined) {
-        const updateResult = updatePanelInDashboard({
-          dashboardData: nextDashboardData,
-          panelId,
-          transformPanel: (panel) => ({
-            ...panel,
-            ...(grid ? { grid } : {}),
-          }),
-        });
-
-        if (!updateResult.updated) {
-          recordMissingPanelFailure(panelId);
-          continue;
-        }
-
-        nextDashboardData = updateResult.dashboardData;
-        continue;
-      }
-
-      // sectionId provided: move the panel to that section, or to the top level when null
-      const removalResult = removePanelsFromDashboard({
+    for (const { panelId, sectionId } of operation.panels) {
+      const { dashboardData: dashboardAfterRemoval, removedPanels } = removePanelsFromDashboard({
         dashboardData: nextDashboardData,
         panelIdsToRemove: [panelId],
       });
-      const { dashboardData: dashboardAfterRemoval, removedPanels } = removalResult;
 
       if (removedPanels.length === 0) {
-        recordMissingPanelFailure(panelId);
+        context.failures.push({
+          type: DASHBOARD_OPERATION_FAILURE_TYPES.updatePanelLayouts,
+          identifier: panelId,
+          error: `Panel "${panelId}" not found.`,
+        });
         continue;
       }
 
-      const [panelToMove] = removedPanels;
       nextDashboardData = appendPanelsToDashboard({
         dashboardData: dashboardAfterRemoval,
-        panelsToAdd: [
-          {
-            ...panelToMove,
-            ...(grid ? { grid } : {}),
-          },
-        ],
+        panelsToAdd: removedPanels,
         // sectionId targets a section; null promotes the panel to the top level
         sectionId: sectionId ?? undefined,
       });

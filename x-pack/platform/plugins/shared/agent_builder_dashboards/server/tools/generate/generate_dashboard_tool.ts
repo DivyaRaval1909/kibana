@@ -33,6 +33,8 @@ import {
 import { retrieveLatestVersion } from './attachment_state';
 import { createAttachmentPanelResolver } from './resolvers/attachment_panel_resolver';
 import { createControlFieldCapabilitiesResolver } from './resolvers/control_field_capabilities_resolver';
+import { createLayoutArranger } from './layout_arranger';
+import { findLayoutOverrides } from './layout_overrides';
 import { createPanelResolver } from './resolvers/panel_resolver';
 import { applyDefaultDashboardTimeRange } from './time_range';
 
@@ -53,7 +55,17 @@ const generateDashboardSchema = z.object({
     .describe(
       '(optional) The id of the dashboard attachment to update. Omit to create a new dashboard. The tool reads the current dashboard payload from this reference, so you never have to pass the full payload back in.'
     ),
-  operations: z.array(dashboardOperationSchema).min(1),
+  operations: z
+    .array(dashboardOperationSchema)
+    .describe('Operations applied in order. May be empty when only `layout` is set.'),
+  layout: z
+    .string()
+    .min(1)
+    .max(1000)
+    .optional()
+    .describe(
+      'The user\'s own request about arrangement or size, e.g. "put the metrics in one row" or "make the table full width". Remembered for later calls. Omit it unless the user asked: panels are placed and sized automatically.'
+    ),
 });
 
 /**
@@ -78,12 +90,10 @@ const summarizeDashboard = (
       return {
         id: widget.id,
         title: widget.title,
-        collapsed: widget.collapsed,
-        grid: widget.grid,
+        ...(widget.collapsed ? { collapsed: true } : {}),
         panels: widget.panels.map((panel) => ({
           type: panel.type,
           id: panel.id,
-          grid: panel.grid,
           authoring_note: authoringNotesByPanelId.get(panel.id),
         })),
       };
@@ -91,7 +101,6 @@ const summarizeDashboard = (
     return {
       type: widget.type,
       id: widget.id,
-      grid: widget.grid,
       authoring_note: authoringNotesByPanelId.get(widget.id),
     };
   }),
@@ -131,14 +140,16 @@ Use operations[] to:
 1. set metadata
 2. add panels generated from a natural-language query (\`source: "request"\`; pick the engine with "renderer": Lens (default), Vega, or custom content for HTML-based layouts that Lens and Vega cannot express), by-value panels (\`source: "config"\`: markdown or ML anomaly panels), or existing visualization attachments by id (\`source: "attachment"\`)
 3. edit existing Lens, Vega, custom content, markdown, or ML anomaly panel content
-4. update panel layouts without changing content
+4. move panels between sections
 5. add / remove sections, including inline section panels during add_section
 6. remove panels
-7. add / remove controls (interactive filters pinned above the dashboard: dropdown, range slider, or time slider)`,
+7. add / remove controls (interactive filters pinned above the dashboard: dropdown, range slider, or time slider)
+
+Panel positions and sizes are set automatically after the operations run. Set \`layout\` only to pass on the user's own arrangement or size request.`,
     schema: generateDashboardSchema,
     handler: async (
-      { dashboardAttachmentId: previousAttachmentId, operations },
-      { logger, attachments, events, esClient, modelProvider }
+      { dashboardAttachmentId: previousAttachmentId, operations, layout },
+      { logger, attachments, events, esClient, modelProvider, resultStore }
     ) => {
       try {
         const latestVersion = retrieveLatestVersion(attachments, previousAttachmentId);
@@ -150,28 +161,34 @@ Use operations[] to:
         }
 
         const dashboardAttachmentId = previousAttachmentId ?? uuidv4();
-        const { dashboardData, failures, panelAuthoringNotes } = await executeDashboardOperations({
-          dashboardData: latestVersion?.data,
-          operations,
-          logger,
-          resolvePanelContent: createPanelResolver({
+        const { dashboardData, failures, panelAuthoringNotes, layoutOverrides } =
+          await executeDashboardOperations({
+            dashboardData: latestVersion?.data,
+            operations,
+            layout,
+            layoutOverrides: previousAttachmentId
+              ? await findLayoutOverrides(resultStore, previousAttachmentId)
+              : undefined,
+            arrangeLayout: createLayoutArranger({ modelProvider }),
             logger,
-            modelProvider,
-            events,
-            esClient,
-          }),
-          resolveAttachmentPanel: createAttachmentPanelResolver({ attachments }),
-          resolveControlFieldCapabilities: createControlFieldCapabilitiesResolver({
-            esClient: esClient.asCurrentUser,
-          }),
-          finalizeDashboard: (generatedDashboardData) =>
-            applyDefaultDashboardTimeRange({
-              dashboardData: generatedDashboardData,
-              esClient,
+            resolvePanelContent: createPanelResolver({
               logger,
+              modelProvider,
+              events,
+              esClient,
             }),
-          validateDashboard: await getValidateDashboard(),
-        });
+            resolveAttachmentPanel: createAttachmentPanelResolver({ attachments }),
+            resolveControlFieldCapabilities: createControlFieldCapabilitiesResolver({
+              esClient: esClient.asCurrentUser,
+            }),
+            finalizeDashboard: (generatedDashboardData) =>
+              applyDefaultDashboardTimeRange({
+                dashboardData: generatedDashboardData,
+                esClient,
+                logger,
+              }),
+            validateDashboard: await getValidateDashboard(),
+          });
 
         const toDashboardResult = (attachmentId: string, version: number) => ({
           results: [
@@ -190,6 +207,7 @@ Use operations[] to:
                     ])
                   )
                 ),
+                layout_overrides: layoutOverrides,
                 failures: failures.length > 0 ? failures : undefined,
               },
             },

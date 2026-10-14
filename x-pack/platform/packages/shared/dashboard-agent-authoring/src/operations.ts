@@ -12,6 +12,7 @@ import type { ResolveAttachmentPanel, ResolveControlFieldCapabilities } from './
 import type { OperationFailure } from './utils';
 import type { PanelAuthoringNote } from './resolve_panel';
 import { discardInvalidChanges, type ValidateDashboard } from './validate_dashboard';
+import { arrangeDashboardLayout, type ArrangeDashboardLayout } from './layout';
 import {
   dashboardOperationSchema,
   executeOperationHandler,
@@ -30,6 +31,12 @@ interface ExecuteDashboardOperationsParams {
   resolveAttachmentPanel?: ResolveAttachmentPanel;
   resolveControlFieldCapabilities?: ResolveControlFieldCapabilities;
   finalizeDashboard?: FinalizeDashboard;
+  /** The user's own request about arrangement or size. */
+  layout?: string;
+  /** The user's layout overrides of the defaults, from the previous call. */
+  layoutOverrides?: string;
+  /** Arranges the changed containers with a model call; without it, new items are packed below. */
+  arrangeLayout?: ArrangeDashboardLayout;
   validateDashboard?: ValidateDashboard;
 }
 
@@ -45,9 +52,10 @@ export type FinalizeDashboard = (
  * is resolved via the injected `resolvePanelContent` callback, so the core never
  * reads any store. Control fields are validated against index mappings when
  * the host provides `resolveControlFieldCapabilities`. The host can complete the
- * result with `finalizeDashboard` (e.g. a default time range) before it is
- * validated. When the host provides `validateDashboard`, changes that make the dashboard invalid are discarded and
- * reported as failures.
+ * result with `finalizeDashboard` (e.g. a default time range). Panels and sections
+ * the operations touched are then placed by the layout step, before validation.
+ * When the host provides `validateDashboard`, changes that make the dashboard
+ * invalid are discarded and reported as failures.
  */
 export const executeDashboardOperations = async ({
   dashboardData,
@@ -57,11 +65,16 @@ export const executeDashboardOperations = async ({
   resolveAttachmentPanel,
   resolveControlFieldCapabilities,
   finalizeDashboard,
+  layout,
+  layoutOverrides,
+  arrangeLayout,
   validateDashboard,
 }: ExecuteDashboardOperationsParams): Promise<{
   dashboardData: DashboardAttachmentData;
   failures: OperationFailure[];
   panelAuthoringNotes: PanelAuthoringNote[];
+  /** The user's layout overrides of the defaults, to pass to the next call. */
+  layoutOverrides?: string;
 }> => {
   const originalDashboardData = structuredClone(
     dashboardData ?? {
@@ -97,8 +110,27 @@ export const executeDashboardOperations = async ({
     nextDashboardData = await finalizeDashboard(nextDashboardData);
   }
 
+  const arrangedLayout = await arrangeDashboardLayout({
+    originalDashboardData,
+    dashboardData: nextDashboardData,
+    editedPanelIds: context.editedPanelIds,
+    instructions: layout,
+    layoutOverrides,
+    authoringNotesByPanelId: new Map(
+      panelAuthoringNotes.map(({ panelId, authoringNote }) => [panelId, authoringNote])
+    ),
+    arrangeLayout,
+    logger,
+  });
+  nextDashboardData = arrangedLayout.dashboardData;
+
   if (!validateDashboard) {
-    return { dashboardData: nextDashboardData, failures, panelAuthoringNotes };
+    return {
+      dashboardData: nextDashboardData,
+      failures,
+      panelAuthoringNotes,
+      layoutOverrides: arrangedLayout.layoutOverrides,
+    };
   }
 
   const validationResult = discardInvalidChanges({
@@ -113,5 +145,6 @@ export const executeDashboardOperations = async ({
     panelAuthoringNotes: panelAuthoringNotes.filter(
       ({ panelId }) => !validationResult.discardedPanelIds.has(panelId)
     ),
+    layoutOverrides: arrangedLayout.layoutOverrides,
   };
 };

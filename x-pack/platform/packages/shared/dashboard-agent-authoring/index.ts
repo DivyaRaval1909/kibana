@@ -8,6 +8,9 @@
 export { dashboardOperationSchema, executeDashboardOperations } from './src/operations';
 export type { FinalizeDashboard } from './src/operations';
 
+export { buildLayoutPrompt, layoutArrangementSchema } from './src/layout';
+export type { ArrangeDashboardLayout, LayoutArrangement, LayoutRequest } from './src/layout';
+
 export { getErrorMessage, hasValidCreateMetadataOperations } from './src/utils';
 
 export { createPanelFailureResult } from './src/resolve_panel';
