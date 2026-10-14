@@ -47,7 +47,10 @@ const caseData: CaseUI = {
 const defaultSelectedColumns = [
   { field: 'title', name: 'Name', isChecked: true },
   { field: 'createdAt', name: 'Created on', isChecked: true },
+  { field: 'updatedAt', name: 'Updated on', isChecked: true },
 ];
+
+const setSelectedColumnsMock = jest.fn();
 
 // Failing: See https://github.com/elastic/kibana/issues/207056
 describe('Case View Page similar cases tab', () => {
@@ -55,7 +58,7 @@ describe('Case View Page similar cases tab', () => {
     useGetCaseConfigurationMock.mockReturnValue(useCaseConfigureResponse);
     useSimilarCasesColumnsSelectionMock.mockReturnValue({
       selectedColumns: defaultSelectedColumns,
-      setSelectedColumns: jest.fn(),
+      setSelectedColumns: setSelectedColumnsMock,
     });
     jest.clearAllMocks();
     useGetSimilarCasesMock.mockReturnValue({
@@ -88,6 +91,18 @@ describe('Case View Page similar cases tab', () => {
   });
 
   describe('sorting', () => {
+    beforeEach(() => {
+      useGetSimilarCasesMock.mockReturnValue({
+        data: {
+          cases: [{ ...basicCase, similarities: { observables: mockSimilarObservables } }],
+          page: 1,
+          perPage: 10,
+          total: 30,
+        },
+        isLoading: false,
+      });
+    });
+
     it('requests the default sort of createdAt descending on first render', async () => {
       renderWithTestingProviders(<CaseViewSimilarCases caseData={caseData} />);
 
@@ -104,6 +119,7 @@ describe('Case View Page similar cases tab', () => {
     it('requests the new sort and resets to page 1 after a header click', async () => {
       renderWithTestingProviders(<CaseViewSimilarCases caseData={caseData} />);
 
+      await userEvent.click(await screen.findByTestId('pagination-button-1'));
       await userEvent.click(await screen.findByRole('button', { name: /Name/ }));
 
       expect(useGetSimilarCasesMock).toHaveBeenLastCalledWith(
@@ -113,6 +129,106 @@ describe('Case View Page similar cases tab', () => {
           page: 1,
         })
       );
+    });
+
+    it('keeps the current sort when the page changes', async () => {
+      renderWithTestingProviders(<CaseViewSimilarCases caseData={caseData} />);
+
+      await userEvent.click(await screen.findByRole('button', { name: /Name/ }));
+      await userEvent.click(await screen.findByTestId('pagination-button-1'));
+
+      expect(useGetSimilarCasesMock).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          sortField: SortFieldCase.title,
+          sortOrder: 'asc',
+          page: 2,
+        })
+      );
+    });
+
+    describe('hiding a column', () => {
+      const hideColumn = async (field: string) => {
+        await userEvent.click(await screen.findByTestId('column-selection-popover-button'));
+        const user = userEvent.setup({ pointerEventsCheck: 0 });
+        await user.click(await screen.findByTestId(`column-selection-switch-${field}`));
+      };
+
+      it('passes the new selection to setSelectedColumns', async () => {
+        renderWithTestingProviders(<CaseViewSimilarCases caseData={caseData} />);
+
+        await hideColumn('createdAt');
+
+        expect(setSelectedColumnsMock).toHaveBeenLastCalledWith(
+          expect.arrayContaining([
+            expect.objectContaining({ field: 'createdAt', isChecked: false }),
+            expect.objectContaining({ field: 'updatedAt', isChecked: true }),
+          ])
+        );
+      });
+
+      it('keeps the current sort and page when the hidden column is not the sorted one', async () => {
+        renderWithTestingProviders(<CaseViewSimilarCases caseData={caseData} />);
+
+        await userEvent.click(await screen.findByRole('button', { name: /Updated on/ }));
+        await userEvent.click(await screen.findByTestId('pagination-button-1'));
+        await hideColumn('createdAt');
+
+        expect(useGetSimilarCasesMock).toHaveBeenLastCalledWith(
+          expect.objectContaining({
+            sortField: SortFieldCase.updatedAt,
+            sortOrder: 'asc',
+            page: 2,
+          })
+        );
+      });
+
+      it('keeps the current page when the sort is already the default', async () => {
+        renderWithTestingProviders(<CaseViewSimilarCases caseData={caseData} />);
+
+        await userEvent.click(await screen.findByTestId('pagination-button-1'));
+        await hideColumn('createdAt');
+
+        expect(useGetSimilarCasesMock).toHaveBeenLastCalledWith(
+          expect.objectContaining({
+            sortField: SortFieldCase.createdAt,
+            sortOrder: 'desc',
+            page: 2,
+          })
+        );
+      });
+
+      it('falls back to the default sort and resets to page 1 when the sort is not the default', async () => {
+        renderWithTestingProviders(<CaseViewSimilarCases caseData={caseData} />);
+
+        await userEvent.click(await screen.findByRole('button', { name: /Created on/ }));
+        await userEvent.click(await screen.findByTestId('pagination-button-1'));
+        await hideColumn('createdAt');
+
+        expect(useGetSimilarCasesMock).toHaveBeenLastCalledWith(
+          expect.objectContaining({
+            sortField: SortFieldCase.createdAt,
+            sortOrder: 'desc',
+            page: 1,
+          })
+        );
+      });
+
+      it('falls back to the default sort when a non-default field is sorted descending', async () => {
+        renderWithTestingProviders(<CaseViewSimilarCases caseData={caseData} />);
+
+        await userEvent.click(await screen.findByRole('button', { name: /Updated on/ }));
+        await userEvent.click(await screen.findByRole('button', { name: /Updated on/ }));
+        await userEvent.click(await screen.findByTestId('pagination-button-1'));
+        await hideColumn('updatedAt');
+
+        expect(useGetSimilarCasesMock).toHaveBeenLastCalledWith(
+          expect.objectContaining({
+            sortField: SortFieldCase.createdAt,
+            sortOrder: 'desc',
+            page: 1,
+          })
+        );
+      });
     });
   });
 });
